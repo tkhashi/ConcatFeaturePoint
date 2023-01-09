@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "dgSpecHash": "/+4kQobVLEyhjAD1A+1+Qco30+ieT8PvHO4Km34s5EZshbftB1fPgPzSgXC7rAXdSLsa5UN76j44HZ0v0KyffA==",
+  "success": true,
+  "projectFilePath": "C:\\Users\\pupod\\work\\ConcatImages\\ConcatImages\\ConcatImages.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\pupod\\.nuget\\packages\\opencvsharp4\\4.6.0.20220608\\opencvsharp4.4.6.0.20220608.nupkg.sha512",
+    "C:\\Users\\pupod\\.nuget\\packages\\opencvsharp4.runtime.win\\4.6.0.20220608\\opencvsharp4.runtime.win.4.6.0.20220608.nupkg.sha512",
+    "C:\\Users\\pupod\\.nuget\\packages\\system.memory\\4.5.4\\system.memory.4.5.4.nupkg.sha512",
+    "C:\\Users\\pupod\\.nuget\\packages\\system.runtime.compilerservices.unsafe\\6.0.0\\system.runtime.compilerservices.unsafe.6.0.0.nupkg.sha512"
+  ],
+  "logs": []
+}
