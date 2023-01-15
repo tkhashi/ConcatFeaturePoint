@@ -3,19 +3,102 @@ using System.Diagnostics;
 
 using var right = new Mat(@"Resources/right.jpg");
 using var center = new Mat(@"Resources/center.jpg");
+using var left = new Mat(@"Resources/left.jpg");
+using var full = new Mat(@"Resources/full.jpg");
 
-Hoge(right, center);
+//Hoge(right, center);
+//Stitch(center, full);
+var trims = TrimStrip(full, 50, 10);
+using var r = Stitch(trims.ToArray());
+Cv2.ImShow("result", r);
+Cv2.WaitKey();
+
+Mat Stitch(params Mat[] param)
+{
+    var seed = param[0];
+    param.ToList().RemoveAt(0);
+    var result = param.Aggregate(seed, (ele, next) => StitchPair(ele, next));
+
+    //Cv2.ImShow("pair", result);
+    //Cv2.WaitKey();
+    return result;
+}
+
+Mat StitchPair(Mat one, Mat two)
+{
+    Cv2.ImShow("one", one);
+    Cv2.WaitKey();
+    Cv2.ImShow("two", two);
+    Cv2.WaitKey();
+    var inputs = new List<Mat>() { one, two};
+    var resultPanorama = new Mat();
+    var stitcher = Stitcher.Create(Stitcher.Mode.Scans);
+    var status = stitcher.Stitch(inputs, resultPanorama);
+
+    if (status is not Stitcher.Status.OK) return two;
+    //Cv2.ImShow("pair", resultPanorama);
+    //Cv2.WaitKey();
+    return resultPanorama;
+}
+
+IEnumerable<Mat> TrimStrip(Mat img, int equiDistant, int overrapWidth)
+{
+    var imgFullWidth = img.Width;
+    var trimWidth = imgFullWidth / equiDistant + (imgFullWidth / (equiDistant * overrapWidth));
+
+    var trims = Enumerable.Range(0, equiDistant)
+        .Select(i => 
+        {
+            var startX = i * (imgFullWidth / equiDistant);
+            var w = i * (imgFullWidth / equiDistant) + trimWidth > imgFullWidth
+                ? imgFullWidth - startX
+                : trimWidth;
+            var trimed = img.Clone(new Rect(startX, 0, w, img.Height));
+            return trimed;
+        })
+        .ToArray();
+
+    //foreach(var trimmed in trims)
+    //{
+    //    Cv2.ImShow("trimmed", trimmed);
+    //    Cv2.WaitKey();
+    //}
+
+    return trims;
+}
+
+void StitchVideoFrame(string videoPath)
+{
+    Mat result = null;
+    using var capture = VideoCapture.FromFile(videoPath);
+    for (int i = 0; i < capture.FrameCount - 1; i++)
+    {
+        capture.PosFrames = i;
+        using var mat = capture.RetrieveMat();
+        // TODO: unfold
+        // using var unfolded = Unfold(mat);
+        if (result is null)
+        {
+            // result = unfolded;
+            result = mat;
+            continue;
+        }
+
+        //result = Stitch(result, unfolded);
+        result = Stitch(result, mat);
+    }
+    Cv2.ImShow("stitched", result);
+    Cv2.WaitKey();
+}
 
 void Hoge(Mat s1, Mat s2)
 {
     var src = new Mat[2];
     var dst = new Mat[2];
-    Mat outImg = new Mat();
-    KeyPoint[] keypoints1;
-    KeyPoint[] keypoints2;
-    var descripter1 = new Mat();
-    var descripter2 = new Mat();
-    var result = new Mat();
+    using var outImg = new Mat();
+    using var descripter1 = new Mat();
+    using var descripter2 = new Mat();
+    using var result = new Mat();
 
     src[0] = s1;
     src[1] = s2;
@@ -25,18 +108,16 @@ void Hoge(Mat s1, Mat s2)
     Cv2.CvtColor(src[1], dst[1], ColorConversionCodes.BGR2GRAY);
 
     var akaze = AKAZE.Create();
-    akaze.DetectAndCompute(dst[0], null, out keypoints1, descripter1);
-    akaze.DetectAndCompute(dst[1], null, out keypoints2, descripter2);
+    akaze.DetectAndCompute(dst[0], null, out KeyPoint[] keypoints1, descripter1);
+    akaze.DetectAndCompute(dst[1], null, out KeyPoint[] keypoints2, descripter2);
 
     var matcher = new BFMatcher();
     var matches = matcher.Match(descripter1, descripter2);
 
     Cv2.DrawMatches(src[0], keypoints1, src[1], keypoints2, matches, outImg);
 
-    using (new Window("OutImg", outImg))
-    {
-        Cv2.WaitKey();
-    }
+    Cv2.ImShow("outimg", outImg);
+    Cv2.WaitKey();
 
     //画像合体
     var size = matches.Length;
@@ -65,9 +146,7 @@ void Hoge(Mat s1, Mat s2)
         }
     }
 
-    using (new Window("result", result))
-    {
-        Cv2.WaitKey();
-    }
+    Cv2.ImShow("result", result);
+    Cv2.WaitKey();
 }
 
