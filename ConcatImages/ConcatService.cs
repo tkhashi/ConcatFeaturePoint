@@ -102,6 +102,7 @@ public class ConcatService
         var templateRectSize = new Size();
         for (var i = 0; i < 100; i++)
         {
+            capture.PosMsec = i * 100;
             var currentMat = capture.RetrieveMat().Resize(Size.Zero, 0.1, 0.1, InterpolationFlags.Area);
             var nextMat = capture.RetrieveMat().Resize(Size.Zero, 0.1, 0.1, InterpolationFlags.Area);
 

@@ -3,7 +3,7 @@
 var desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
 var videoPath = Path.Combine(desktop, @"RoofInspection\DJI_0299.MP4");
 var concater = new ConcatService();
-concater.IterateMatchTemplate(videoPath);
+concater.ParallelMatchingTemplate(videoPath);
 
 //using OpenCvSharp;
 //using System.Diagnostics;
