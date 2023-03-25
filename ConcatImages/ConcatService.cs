@@ -92,6 +92,67 @@ public class ConcatService
         }
     }
 
+    public void ParallelMatchingTemplate(string videoPath)
+    {
+        var cnt = 0;
+        var capture = VideoCapture.FromFile(videoPath);
+
+        // 現在のフレームに次のフレームが重なる座標の検出
+        var frameOverRapPoints = new Dictionary<int, Point>();
+        var templateRectSize = new Size();
+        for (var i = 0; i < 100; i++)
+        {
+            var currentMat = capture.RetrieveMat().Resize(Size.Zero, 0.1, 0.1, InterpolationFlags.Area);
+            var nextMat = capture.RetrieveMat().Resize(Size.Zero, 0.1, 0.1, InterpolationFlags.Area);
+
+            var w = (int)(currentMat.Width / 100d);
+            var startX = currentMat.Width / 2 - w / 2;
+            var templateRect = new Rect(startX, 0, w, currentMat.Height);
+            templateRectSize.Width = templateRect.Width;
+
+            using var template = currentMat.SubMat(templateRect);
+            nextMat
+                .MatchTemplate(template, TemplateMatchModes.CCoeffNormed)
+                .MinMaxLoc(out var minVal, out var maxVal, out var minLoc, out var maxLoc);
+
+            cnt++;
+            if (maxVal >= 0.7)
+            {
+                frameOverRapPoints.Add(i, maxLoc);
+                Debug.WriteLine($"Match 'N Concat1 Frame{cnt}");
+            }
+            else
+            {
+                Debug.WriteLine($"Don't Match Frame{cnt}");
+            }
+        }
+
+        // TODO: 画像真ん中をテンプレートにしたのでトリミングするときは差分から位置を決める
+        // トリミング
+        var trimmedMats = new Mat[frameOverRapPoints.Count];
+        foreach (var (frame, point) in frameOverRapPoints)
+        {
+            capture.PosFrames = frame;
+            var currentMat = capture.RetrieveMat();
+            var trimTarget = currentMat.Clone(new Rect(point, templateRectSize));
+            trimmedMats[frame] = trimTarget;
+        }
+
+        // つなげる
+        var result = trimmedMats.Aggregate((ele, next) =>
+        {
+            var dst = new Mat();
+            Cv2.HConcat(new[] { ele, next }, dst);
+            return dst;
+        });
+
+        // TODO: resultが0*0のMatで帰ってきてしまうので確認
+        Cv2.ImShow("Result", result);
+        Cv2.WaitKey();
+        var desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+        result.SaveImage(Path.Combine(desktop, "ParallelResult.png"));
+    }
+
     public void IterateMatchTemplate(string videoPath)
     {
         var cnt = 0;
@@ -101,6 +162,7 @@ public class ConcatService
         var w = (int)(capture.FrameWidth / 100d);
         var startX = capture.FrameWidth / 2 - w / 2;
         var templateRect = new Rect(startX, 0, w, capture.FrameHeight);
+
         Observable.Range(0, 100)
             .Select(i =>
             {
