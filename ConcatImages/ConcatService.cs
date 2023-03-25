@@ -1,4 +1,5 @@
-﻿using System.Reactive.Linq;
+﻿using System.Diagnostics;
+using System.Reactive.Linq;
 using OpenCvSharp;
 
 namespace ConcatImages;
@@ -53,10 +54,16 @@ public class ConcatService
             });
     }
 
+    // テンプレートマッチングでマッチした箇所を四角で表示する
     public void MatchTemplate(string videoPath)
     {
-        using var left = new Mat(@"Resources/left.jpg");
-        using var center = new Mat(@"Resources/center.jpg");
+        //using var left = new Mat(@"Resources/left.jpg");
+        //using var center = new Mat(@"Resources/center.jpg");
+
+        using var capture = VideoCapture.FromFile(videoPath);
+        using var center = capture.RetrieveMat().Resize(Size.Zero, 0.1, 0.1, InterpolationFlags.Area);
+        capture.PosMsec = 1000;
+        using var left = capture.RetrieveMat().Resize(Size.Zero, 0.1, 0.1, InterpolationFlags.Area);
 
         var w = (int)(center.Width / 10d);
         var trimmingRect = new Rect(0, 0, w, center.Height);
@@ -70,10 +77,9 @@ public class ConcatService
 
         Mat Match(Mat target, Mat temp)
         {
-            using var result = new Mat();
-            Cv2.MatchTemplate(target, temp, result, TemplateMatchModes.CCoeffNormed); //マッチング処理
-            Point minLoc, maxLoc;
-            Cv2.MinMaxLoc(result, out var minVal, out var maxVal, out minLoc, out maxLoc); //最大値と座標を取得
+            target
+                .MatchTemplate(temp, TemplateMatchModes.CCoeffNormed)
+                .MinMaxLoc(out var minVal, out var maxVal, out var minLoc, out var maxLoc);
             if (maxVal >= 0.7)
             {
                 //矩形と値を描画
@@ -84,5 +90,49 @@ public class ConcatService
 
             return target;
         }
+    }
+
+    public void IterateMatchTemplate(string videoPath)
+    {
+        var cnt = 0;
+        var capture = VideoCapture.FromFile(videoPath);
+
+        // カメラが右から左へ進む想定
+        var w = (int)(capture.FrameWidth / 100d);
+        var startX = capture.FrameWidth / 2 - w / 2;
+        var templateRect = new Rect(startX, 0, w, capture.FrameHeight);
+        Observable.Range(0, 100)
+            .Select(i =>
+            {
+                capture.PosMsec = i * 100;
+                return capture.RetrieveMat().Resize(Size.Zero, 1, 1, InterpolationFlags.Area);
+            })
+            .Aggregate((ele, next) =>
+            {
+                cnt++;
+                using var template = ele.SubMat(templateRect);
+
+                next
+                    .MatchTemplate(template, TemplateMatchModes.CCoeffNormed)
+                    .MinMaxLoc(out var minVal, out var maxVal, out var minLoc, out var maxLoc);
+                if (maxVal >= 0.7)
+                {
+                    var trimTarget = next.Clone(new Rect(maxLoc, template.Size()));
+                    var dst = new Mat();
+                    Cv2.HConcat(new[] { trimTarget, next }, dst);
+                    Debug.WriteLine($"Match 'N Concat1 Frame{cnt}");
+                    return dst;
+                }
+
+                Debug.WriteLine($"Don't Match Frame{cnt}");
+                return ele;
+            })
+            .Subscribe(mat =>
+            {
+                Cv2.ImShow("result", mat);
+                Cv2.WaitKey();
+                var desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+                mat.SaveImage(Path.Combine(desktop, "Result.png"));
+            });
     }
 }

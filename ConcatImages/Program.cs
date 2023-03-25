@@ -1,9 +1,9 @@
 ﻿using ConcatImages;
 
-const string videoPath = @"C:\Users\Kazuhiro Takahashi\Desktop\RoofInspection\DJI_0299.MP4";
+var desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+var videoPath = Path.Combine(desktop, @"RoofInspection\DJI_0299.MP4");
 var concater = new ConcatService();
-//concater.MatchAkaza(videoPath);
-concater.MatchTemplate(videoPath);
+concater.IterateMatchTemplate(videoPath);
 
 //using OpenCvSharp;
 //using System.Diagnostics;
