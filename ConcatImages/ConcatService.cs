@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System.ComponentModel;
+using System.Diagnostics;
 using System.Reactive.Linq;
 using OpenCvSharp;
 
@@ -94,48 +95,51 @@ public class ConcatService
 
     public void ParallelMatchingTemplate(string videoPath)
     {
-        var cnt = 0;
         var capture = VideoCapture.FromFile(videoPath);
 
         // 現在のフレームに次のフレームが重なる座標の検出
-        var frameOverRapPoints = new Dictionary<int, Point>();
-        var templateRectSize = new Size();
-        for (var i = 0; i < 100; i++)
+        var frameOverRapPoints = new Dictionary<int, Point>(5);
+        // マッチ率を上げるために解像度を低くする
+        const double ratio = 0.1;
+        const int skipFrame = 100;
+        // 画像の真ん中をテンプレートにする
+        var captureWidth = capture.FrameWidth * ratio;
+        var captureHeight = capture.FrameHeight * ratio;
+        var templateWidth = captureWidth / 100d;
+        var startX = captureWidth / 2 - templateWidth / 2;
+        var templateRect = new Rect((int)startX, 0, (int)templateWidth, (int)captureHeight);
+        for (var i = 0; i < frameOverRapPoints.Count; i++)
         {
-            capture.PosMsec = i * 100;
-            var currentMat = capture.RetrieveMat().Resize(Size.Zero, 0.1, 0.1, InterpolationFlags.Area);
-            var nextMat = capture.RetrieveMat().Resize(Size.Zero, 0.1, 0.1, InterpolationFlags.Area);
-
-            var w = (int)(currentMat.Width / 100d);
-            var startX = currentMat.Width / 2 - w / 2;
-            var templateRect = new Rect(startX, 0, w, currentMat.Height);
-            templateRectSize.Width = templateRect.Width;
+            using var currentMat = capture.RetrieveMat().Resize(Size.Zero, ratio, ratio, InterpolationFlags.Area);
+            capture.PosMsec = (i + 1) * skipFrame;
+            using var nextMat = capture.RetrieveMat().Resize(Size.Zero, ratio, ratio, InterpolationFlags.Area);
 
             using var template = currentMat.SubMat(templateRect);
             nextMat
                 .MatchTemplate(template, TemplateMatchModes.CCoeffNormed)
                 .MinMaxLoc(out var minVal, out var maxVal, out var minLoc, out var maxLoc);
 
-            cnt++;
             if (maxVal >= 0.7)
             {
                 frameOverRapPoints.Add(i, maxLoc);
-                Debug.WriteLine($"Match 'N Concat1 Frame{cnt}");
+                Debug.WriteLine($"Match 'N Concat 1Frame{i}");
             }
             else
             {
-                Debug.WriteLine($"Don't Match Frame{cnt}");
+                Debug.WriteLine($"Don't Match Frame{i}");
             }
         }
 
         // TODO: 画像真ん中をテンプレートにしたのでトリミングするときは差分から位置を決める
         // トリミング
         var trimmedMats = new Mat[frameOverRapPoints.Count];
+
         foreach (var (frame, point) in frameOverRapPoints)
         {
-            capture.PosFrames = frame;
-            var currentMat = capture.RetrieveMat();
-            var trimTarget = currentMat.Clone(new Rect(point, templateRectSize));
+            capture.PosFrames = frame * skipFrame;
+            var trimTarget = capture.RetrieveMat()
+                .Resize(Size.Zero, ratio, ratio, InterpolationFlags.Area)
+                .Clone(new Rect(point, templateRect.Size));
             trimmedMats[frame] = trimTarget;
         }
 
