@@ -1,9 +1,21 @@
 ﻿using ConcatImages;
+using OpenCvSharp;
 
 var desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-var videoPath = Path.Combine(desktop, @"RoofInspection\DJI_0299.MP4");
+var videoPath = Path.Combine(desktop, @"RoofInspection/DJI_0327.MP4");
 var concater = new ConcatService();
-concater.ParallelMatchingTemplate(videoPath);
+//concater.IterateMatchTemplate(videoPath);
+//concater.IterateMatchTemplate(videoPath, 0);
+//concater.IterateMatchTemplate(videoPath, 10000);
+//concater.IterateMatchTemplate(videoPath, 20000);
+//concater.IterateMatchTemplate(videoPath, 30000);
+//concater.IterateMatchTemplate(videoPath, 40000);
+//concater.IterateMatchTemplate(videoPath, 50000);
+
+using var resultMat = VideoProcessor.GenerateCompositeImageFromVideo(videoPath);
+Cv2.ImShow("resultMat", resultMat);
+Cv2.WaitKey();
+resultMat.SaveImage($"{desktop}_huge_concat_img.png");
 
 //using OpenCvSharp;
 //using System.Diagnostics;
