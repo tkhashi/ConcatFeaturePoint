@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Reactive.Linq;
 using OpenCvSharp;
 
@@ -140,20 +141,67 @@ public class ConcatService
         return result;
     }
 
-    //public IEnumerable<FrameAxis> MatchAxisFrame(string videoPath)
-    //{
+    public static void TrimmingTimer(string videoPath)
+    {
+        var sw = Stopwatch.StartNew();
+        using var cap = VideoCapture.FromFile(videoPath);
+        using var mockFrame = cap.RetrieveMat();
+        var startRow = (mockFrame.Height / 2) - 25;
+        var endRow = startRow + 25;
+        var startCol = (mockFrame.Width / 2) - 25;
+        var endCol = startCol + 25;
+        var framePairs = new ConcurrentDictionary<int, Mat>();
 
-    //    // OpenCvSharpを利用
+        for (var i = 1; i < cap.FrameCount; i+=300)
+        {
+            if (i > cap.FrameCount) break;
+            GetFrames(i);
+            SubMats();
+        }
 
-    //    // 現在のフレームと次のフレームを取得
+        void SubMats()
+        {
+            if (framePairs is null) return;
+            framePairs.AsParallel().ForAll(x =>
+            {
+                var trimmed = x.Value.SubMat(startRow, endRow, startCol, endCol);
+                framePairs.AddOrUpdate(x.Key, i => trimmed, (i, mat) => trimmed);
+            });
+        }
 
-    //    // それぞれ1/10のサイズに縮小
+        void GetFrames(int startFrame)
+        {
+            if (framePairs is null) return;
+            for (var i = startFrame; i < startFrame + 300; i++)
+            {
+                if (i > cap.FrameCount) break;
+                cap.PosFrames = i;
+                var frame = cap.RetrieveMat();
+                framePairs.AddOrUpdate(i, _ => frame, (_, _) => frame);
+            }
+        }
 
-    //    // 現在のフレームと次のフレームの中央100*100をテンプレートマッチングで比較して移動量をFramAxis構造体として返す
+        sw.Stop();
+        var time = sw.Elapsed.TotalSeconds;
+        Debug.WriteLine(time);
+        Console.WriteLine(time);
+        Console.ReadKey();
+    }
+    public IEnumerable<FrameAxis> MatchAxisFrame(string videoPath)
+    {
 
-    //    // 
+        //    // OpenCvSharpを利用
 
-    //}
+        //    // 現在のフレームと次のフレームを取得
+
+        //    // それぞれ1/10のサイズに縮小
+
+        //    // 現在のフレームと次のフレームの中央100*100をテンプレートマッチングで比較して移動量をFramAxis構造体として返す
+
+        //    // 
+
+        return new List<FrameAxis>();
+    }
 
 
 }

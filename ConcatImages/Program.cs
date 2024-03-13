@@ -12,10 +12,7 @@ var concater = new ConcatService();
 //concater.IterateMatchTemplate(videoPath, 40000);
 //concater.IterateMatchTemplate(videoPath, 50000);
 
-using var resultMat = VideoProcessor.GenerateCompositeImageFromVideo(videoPath);
-Cv2.ImShow("resultMat", resultMat);
-Cv2.WaitKey();
-resultMat.SaveImage($"{desktop}_huge_concat_img.png");
+ConcatService.TrimmingTimer(videoPath);
 
 //using OpenCvSharp;
 //using System.Diagnostics;
